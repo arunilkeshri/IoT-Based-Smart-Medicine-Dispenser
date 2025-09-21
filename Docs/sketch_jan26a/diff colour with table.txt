@@ -1,0 +1,122 @@
+#include <Adafruit_NeoPixel.h>
+
+// Pin definitions
+#define LED_PIN 5 // Pin connected to the LED strip
+#define BUTTON_PIN 12 // Pin connected to the button
+#define NUM_LEDS 61 // Total number of LEDs in the strip
+#define SPEAKER_PIN 13 // Pin connected to the speaker
+
+Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+// LED slots for each day and time
+int slots[7][3][3] = {
+  {{0, 1, 2}, {37, 38, 39}, {40, 41, 42}}, // Monday: Morning, Noon, Night
+  {{3, 4, 5}, {36, 35, 34}, {43, 44, 45}}, // Tuesday: Morning, Noon, Night
+  {{6, 7, 8}, {33, 32, 31}, {46, 47, 48}}, // Wednesday: Morning, Noon, Night
+  {{9, 10, 11}, {30, 29, 28}, {49, 50, 51}}, // Thursday: Morning, Noon, Night
+  {{12, 13, 14}, {27, 26, 25}, {52, 53, 54}}, // Friday: Morning, Noon, Night
+  {{15, 16, 17}, {24, 23, 22}, {55, 56, 57}}, // Saturday: Morning, Noon, Night
+  {{18, 19, 19}, {20, 21, 21}, {58, 59, 60}} // Sunday: Morning, Noon, Night
+};
+
+// 2D array to store status for each day and time slot
+String status[7][3] = {
+  {"", "", ""}, // Monday: Morning, Noon, Night
+  {"", "", ""}, // Tuesday: Morning, Noon, Night
+  {"", "", ""}, // Wednesday: Morning, Noon, Night
+  {"", "", ""}, // Thursday: Morning, Noon, Night
+  {"", "", ""}, // Friday: Morning, Noon, Night
+  {"", "", ""}, // Saturday: Morning, Noon, Night
+  {"", "", ""}  // Sunday: Morning, Noon, Night
+};
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP); // Button with pull-up resistor
+  pinMode(SPEAKER_PIN, OUTPUT); // Speaker pin as output
+  strip.begin(); // Initialize the LED strip
+  strip.show(); // Clear the strip
+  Serial.begin(115200); // Start serial communication
+}
+
+void loop() {
+  for (int day = 0; day < 7; day++) { // Loop through all days
+    for (int timeSlot = 0; timeSlot < 3; timeSlot++) { // Loop through Morning, Noon, Night
+      runSlot(day, timeSlot); // Execute the slot
+      delay(15000); // 15 seconds interval between slots
+    }
+  }
+}
+
+void runSlot(int day, int timeSlot) {
+  int *leds = slots[day][timeSlot]; // Get the LEDs for the current day and time slot
+
+  // Turn on speaker and blink LEDs for 10 seconds
+  unsigned long startTime = millis();
+  digitalWrite(SPEAKER_PIN, HIGH); // Speaker ON
+
+  while (millis() - startTime < 10000) {
+    // Determine the color based on timeSlot (blue for Noon, red for Night, green for Morning)
+    if (timeSlot == 1) {
+      setLeds(leds, 0, 0, 255); // Blue for Noon
+    } else if (timeSlot == 2) {
+      setLeds(leds, 255, 0, 0); // Red for Night
+    } else {
+      setLeds(leds, 0, 255, 0); // Green for Morning
+    }
+    delay(500);
+    setLeds(leds, 0, 0, 0); // Turn off LEDs
+    delay(500);
+
+    // Check if the button is pressed
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      status[day][timeSlot] = "Medicine Taken";
+      digitalWrite(SPEAKER_PIN, LOW); // Speaker OFF
+      updateSerialMonitor(); // Update the serial monitor with the table
+      return; // Exit the slot as the medicine is taken
+    }
+  }
+
+  // After 10 seconds, if no button press
+  status[day][timeSlot] = "Medicine Missed";
+  digitalWrite(SPEAKER_PIN, LOW); // Speaker OFF
+  updateSerialMonitor(); // Update the serial monitor with the table
+}
+
+void setLeds(int *leds, int red, int green, int blue) {
+  // Loop through all LEDs for this slot and set the color
+  for (int i = 0; leds[i] >= 0 && i < 3; i++) {
+    strip.setPixelColor(leds[i], strip.Color(red, green, blue));
+  }
+  strip.show();
+}
+
+void updateSerialMonitor() {
+  // Print the status table to the serial monitor
+  Serial.println("\n--------------------------------------------");
+  Serial.println("Day        Morning          Noon            Night");
+  Serial.println("--------------------------------------------");
+
+  const char* days[] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+  
+  for (int day = 0; day < 7; day++) {
+    // Print the day name
+    Serial.print(days[day]);
+    Serial.print("   ");
+
+    // Print the status for each time slot (Morning, Noon, Night)
+    for (int timeSlot = 0; timeSlot < 3; timeSlot++) {
+      // Adjust spacing to properly align columns
+      int len = status[day][timeSlot].length();
+      if (len < 15) {
+        for (int i = 0; i < (15 - len); i++) {  // Adjust spacing
+          Serial.print(" ");
+        }
+      }
+      Serial.print(status[day][timeSlot]);
+      Serial.print("   ");
+    }
+    Serial.println();
+  }
+  Serial.println("--------------------------------------------");
+  Serial.flush(); // Clear the serial buffer to avoid unwanted characters
+}

@@ -1,0 +1,93 @@
+#include <Adafruit_NeoPixel.h>
+
+// Pin definitions
+#define LED_PIN 5 // Pin connected to the LED strip
+#define BUTTON_PIN 12 // Pin connected to the button
+#define NUM_LEDS 61 // Total number of LEDs in the strip
+#define SPEAKER_PIN 13 // Pin connected to the speaker
+
+Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+// LED slots for each day and time
+int slots[7][3][3] = {
+  {{0, 1, 2}, {37, 38, 39}, {40, 41, 42}}, // Monday: Morning, Noon, Night
+  {{3, 4, 5}, {36, 35, 34}, {43, 44, 45}}, // Tuesday: Morning, Noon, Night
+  {{6, 7, 8}, {33, 32, 31}, {46, 47, 48}}, // Wednesday: Morning, Noon, Night
+  {{9, 10, 11}, {30, 29, 28}, {49, 50, 51}}, // Thursday: Morning, Noon, Night
+  {{12, 13, 14}, {27, 26, 25}, {52, 53, 54}}, // Friday: Morning, Noon, Night
+  {{15, 16, 17}, {24, 23, 22}, {55, 56, 57}}, // Saturday: Morning, Noon, Night
+  {{18, 19, 19}, {20, 21, 21}, {58, 59, 60}}  // Sunday: Morning, Noon, Night
+};
+
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP); // Button with pull-up resistor
+  pinMode(SPEAKER_PIN, OUTPUT); // Speaker pin as output
+  strip.begin(); // Initialize the LED strip
+  strip.show(); // Clear the strip
+  Serial.begin(115200); // Start serial communication
+}
+
+void loop() {
+  for (int day = 0; day < 7; day++) { // Loop through all days
+    for (int timeSlot = 0; timeSlot < 3; timeSlot++) { // Loop through Morning, Noon, Night
+      runSlot(day, timeSlot); // Execute the slot
+      delay(15000); // 15 seconds interval between slots
+    }
+  }
+}
+
+void runSlot(int day, int timeSlot) {
+  int *leds = slots[day][timeSlot]; // Get the LEDs for the current day and time slot
+
+  // Turn on speaker and blink LEDs for 10 seconds
+  unsigned long startTime = millis();
+  digitalWrite(SPEAKER_PIN, HIGH); // Speaker ON
+
+  while (millis() - startTime < 10000) {
+    // Check the timeSlot and set color accordingly
+    if (timeSlot == 1) { // Noon - Row 2
+      setLeds(leds, 0, 0, 255); // Blue color for Row 2
+    }
+    else if (timeSlot == 2) { // Night - Row 3
+      setLeds(leds, 255, 0, 0); // Red color for Row 3
+    } else { // Morning - Row 1 (default Green)
+      setLeds(leds, 0, 255, 0); // Green color for Row 1
+    }
+
+    delay(500);
+    setLeds(leds, 0, 0, 0); // Turn off LEDs
+    delay(500);
+
+    // Check if the button is pressed
+    if (digitalRead(BUTTON_PIN) == LOW) {
+      Serial.println("Medicine Taken");
+      digitalWrite(SPEAKER_PIN, LOW); // Speaker OFF
+      return; // Exit the slot as the medicine is taken
+    }
+  }
+
+  // After 10 seconds, if no button press
+  digitalWrite(SPEAKER_PIN, LOW); // Speaker OFF
+  Serial.println("Medicine Missed");
+}
+
+void setLeds(int *leds, int red, int green, int blue) {
+  // For Sunday Morning and Sunday Noon, loop through only 2 LEDs
+  if (leds == slots[6][0]) { // Sunday Morning (18, 19)
+    for (int i = 0; i < 2; i++) {
+      strip.setPixelColor(leds[i], strip.Color(red, green, blue));
+    }
+  }
+  else if (leds == slots[6][1]) { // Sunday Noon (20, 21)
+    for (int i = 0; i < 2; i++) {
+      strip.setPixelColor(leds[i], strip.Color(red, green, blue));
+    }
+  }
+  else { // For other slots, use the existing logic (i.e., 3 LEDs or more)
+    for (int i = 0; leds[i] >= 0 && i < 3; i++) {
+      strip.setPixelColor(leds[i], strip.Color(red, green, blue));
+    }
+  }
+
+  strip.show();
+}
