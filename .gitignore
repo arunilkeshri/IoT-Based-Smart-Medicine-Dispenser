@@ -1,0 +1,39 @@
+# Arduino/PlatformIO/ESP32
+*.elf
+*.bin
+*.hex
+*.eep
+*.map
+*.log
+*.pioenvs/
+*.vscode/
+.vscode/
+*.ino.cpp
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.tmp
+*.swp
+
+# 3D Design / STL / Fusion360
+*.stl
+*.f3d
+*.f3z
+*.step
+*.sldprt
+*.sldasm
+
+# Documentation / Misc
+*.pdf
+*.docx
+*.xlsx
+
+# Node/Package files if used
+node_modules/
+npm-debug.log
+
